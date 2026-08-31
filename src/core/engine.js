@@ -2,6 +2,7 @@ import { Interpreter } from './interpreter.js';
 import { EventRuntime } from './event-runtime.js';
 import { InputSystem } from './input.js';
 import { VariableStore } from './variables.js';
+import { BlockRuntime } from './block-runtime.js';
 import { PhysicsWorld } from '../runtime/physics.js';
 
 export class Engine {
@@ -14,6 +15,7 @@ export class Engine {
     this.input = new InputSystem(canvas.ownerDocument?.defaultView ?? window);
     this.variables = new VariableStore(project.variables);
     this.physics = new PhysicsWorld();
+    this.blocks = new BlockRuntime(this.interpreter, project);
     this.running = false;
     this.lastTime = 0;
   }
@@ -22,13 +24,14 @@ export class Engine {
     if (this.running) return;
     this.running = true;
     this.lastTime = performance.now();
+    this.blocks.runScene(this.project.scene, { engine: this });
     this.events.emit('start', { engine: this });
     requestAnimationFrame((time) => this.tick(time));
   }
 
   stop() {
     this.running = false;
-    this.interpreter.clear();
+    this.blocks.stopAll();
     this.events.emit('stop', { engine: this });
   }
 
@@ -58,8 +61,13 @@ export class Engine {
     this.ctx.fillRect(0, 0, width, height);
     for (const object of this.project.scene.objects) {
       if (!object.visible) continue;
+      this.ctx.save();
+      this.ctx.translate(object.x + object.width / 2, object.y + object.height / 2);
+      this.ctx.rotate(object.rotation ?? 0);
+      this.ctx.scale(object.scaleX ?? 1, object.scaleY ?? 1);
       this.ctx.fillStyle = object.color ?? '#fff';
-      this.ctx.fillRect(object.x, object.y, object.width, object.height);
+      this.ctx.fillRect(-object.width / 2, -object.height / 2, object.width, object.height);
+      this.ctx.restore();
     }
   }
 }
