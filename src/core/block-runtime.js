@@ -12,6 +12,15 @@ export class BlockRuntime {
     this.running.delete(task);
   }
 
+  runObject(object, context = {}) {
+    for (const script of object.scripts ?? []) this.start(object, script, context);
+  }
+
+  runScene(scene, context = {}) {
+    for (const script of scene.scripts ?? []) this.interpreter.execute(script, { project: this.project, scene, runtime: this, ...context });
+    for (const object of scene.objects ?? []) this.runObject(object, context);
+  }
+
   stopAll() {
     this.running.clear();
     this.interpreter.clear();
