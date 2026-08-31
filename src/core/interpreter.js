@@ -1,9 +1,8 @@
-import { walkBlocks } from './ast.js';
-
 export class Interpreter {
   constructor(project) {
     this.project = project;
     this.handlers = new Map();
+    this.coroutines = new Set();
   }
 
   register(type, handler) {
@@ -11,10 +10,32 @@ export class Interpreter {
     return this;
   }
 
-  run(script, context = {}) {
-    walkBlocks(script, (block) => {
+  execute(script, context = {}) {
+    let block = script;
+    let guard = 0;
+    while (block && guard++ < 10000) {
       const handler = this.handlers.get(block.type);
-      if (handler) handler(context, block);
-    });
+      if (handler) {
+        const result = handler(context, block, this);
+        if (result && typeof result.then === 'function') {
+          this.coroutines.add(result);
+        }
+      }
+      block = block.next;
+    }
+  }
+
+  run(script, context = {}) {
+    return this.execute(script, context);
+  }
+
+  update() {
+    for (const task of this.coroutines) {
+      task.then(() => this.coroutines.delete(task), () => this.coroutines.delete(task));
+    }
+  }
+
+  clear() {
+    this.coroutines.clear();
   }
 }
