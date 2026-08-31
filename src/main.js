@@ -1,9 +1,14 @@
 import './style.css';
 import { createProject } from './core/project.js';
-import { BLOCK_DEFINITIONS } from './blocks/definitions.js';
+import { createBlock } from './core/block.js';
+import { ProjectStore } from './core/store.js';
+import { BlockRegistry } from './blocks/registry.js';
+import { Runtime } from './runtime/runtime.js';
 
 const app = document.querySelector('#app');
 const project = createProject('My Game');
+const store = new ProjectStore(project);
+const registry = new BlockRegistry();
 
 app.innerHTML = `
   <header class="topbar">
@@ -31,31 +36,38 @@ app.innerHTML = `
 
 const palette = document.querySelector('#palette');
 const workspace = document.querySelector('#workspace');
+const canvas = document.querySelector('#game');
+const runtime = new Runtime(project, canvas);
 
-for (const block of BLOCK_DEFINITIONS) {
+function addBlock(definition) {
+  workspace.querySelector('.empty')?.remove();
+
+  const block = createBlock(
+    definition.type,
+    definition.fields ?? {},
+    definition.inputs ?? {}
+  );
+  project.scene.scripts.push(block);
+  store.notify();
+
+  const item = document.createElement('div');
+  item.className = `block ${definition.category}`;
+  item.textContent = definition.label;
+  item.dataset.type = block.type;
+  item.dataset.id = block.id;
+  workspace.appendChild(item);
+}
+
+for (const block of registry.all()) {
   const button = document.createElement('button');
   button.className = `block-button ${block.category}`;
   button.textContent = block.label;
-  button.addEventListener('click', () => {
-    workspace.querySelector('.empty')?.remove();
-    const item = document.createElement('div');
-    item.className = `block ${block.category}`;
-    item.textContent = block.label;
-    item.dataset.type = block.type;
-    workspace.appendChild(item);
-    project.scene.scripts.push({ type: block.type });
-  });
+  button.addEventListener('click', () => addBlock(block));
   palette.appendChild(button);
 }
 
 document.querySelector('#run').addEventListener('click', () => {
-  const ctx = document.querySelector('#game').getContext('2d');
-  ctx.clearRect(0, 0, 640, 360);
-  ctx.fillStyle = '#222';
-  ctx.fillRect(0, 0, 640, 360);
-  ctx.fillStyle = '#fff';
-  ctx.font = '20px sans-serif';
-  ctx.fillText(`${project.name} 실행 중`, 20, 35);
-  ctx.font = '14px monospace';
-  ctx.fillText(`${project.scene.scripts.length} blocks`, 20, 60);
+  runtime.running ? runtime.stop() : runtime.start();
 });
+
+runtime.render();
