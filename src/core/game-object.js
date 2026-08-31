@@ -11,6 +11,12 @@ export function createGameObject(name = 'Object') {
     scaleX: 1,
     scaleY: 1,
     assetId: null,
-    scripts: []
+    scripts: [],
+    physics: false,
+    static: false,
+    vx: 0,
+    vy: 0,
+    gravity: 980,
+    grounded: false
   };
 }
